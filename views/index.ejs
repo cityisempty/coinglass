@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>强度数据</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.1/js/bootstrap.bundle.min.js"></script>
+    <script src="/public/js/chat.umd.js"></script>
+    <style>
+        .container { padding-top: 2rem; }
+        .coin-select { 
+            max-width: 200px;
+            font-weight: bold;
+            text-align: center;
+            background-color: #f8f9fa;
+            border: 2px solid #dee2e6;
+            padding: 0.5rem;
+        }
+        .coin-select option {
+            padding: 10px;
+            font-weight: normal;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 2rem;
+        }
+        .long-strength { color: #dc3545; }  /* 红色 */
+        .short-strength { color: #198754; }  /* 绿色 */
+        .days-select {
+            display: inline-block;
+            margin-left: 1rem;
+        }
+        .days-select .btn {
+            margin: 0 0.2rem;
+        }
+        .days-select .btn.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row mb-3">
+            <div class="col-auto">
+                <select class="form-select" id="coinSelect" onchange="updateData()">
+                    <% coins.forEach(function(coin) { %>
+                        <option value="<%= coin %>" <%= coin === selectedCoin ? 'selected' : '' %>><%= coin %></option>
+                    <% }); %>
+                </select>
+            </div>
+            <div class="col-auto days-select">
+                <div class="btn-group" role="group">
+                    <% [1, 3, 5, 7].forEach(function(day) { %>
+                        <button type="button" class="btn btn-outline-primary <%= day === selectedDays ? 'active' : '' %>" 
+                                onclick="updateData('<%= day %>')">
+                            <%= day %>天
+                        </button>
+                    <% }); %>
+                </div>
+            </div>
+            <div class="col-auto ms-auto d-flex">
+                <button type="button" class="btn btn-primary mr-2" onclick="updateData()">
+                    刷新
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-danger dropdown-toggle" type="button" id="cleanDataDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        清理数据
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="cleanDataDropdown">
+                        <li><a class="dropdown-item" href="#" onclick="cleanData(0); return false;">清理全部数据</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="cleanData(1); return false;">清理1天前数据</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="cleanData(3); return false;">清理3天前数据</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="cleanData(5); return false;">清理5天前数据</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="cleanData(7); return false;">清理7天前数据</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="liquidationChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据表格 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">数据表格</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>币种</th>
+                                <th>多头强度</th>
+                                <th>空头强度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% data.forEach(function(row) { %>
+                                <tr>
+                                    <td><%= row.created_at %></td>
+                                    <td><%= row.coin %></td>
+                                    <td class="long-strength"><%= row.left_liquidation %></td>
+                                    <td class="short-strength"><%= row.right_liquidation %></td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 更新数据函数
+        function updateData(days) {
+            const coin = document.getElementById('coinSelect').value;
+            const daysParam = days || <%= selectedDays %>;
+            window.location.href = `/?coin=${coin}&days=${daysParam}`;
+        }
+
+        // 准备图表数据
+        const data = <%- JSON.stringify(data) %>;
+        // 反转数据数组，使其按时间正序
+        const chartData = [...data].reverse();
+        const timestamps = chartData.map(row => row.created_at);
+        const timezoneOffset = <%= timezoneOffset %>;
+
+        function parseValue(value) {
+            if (!value) return null;
+            
+            // 移除所有空格
+            value = value.trim();
+            
+            // 检查单位
+            const unit = value.slice(-1).toUpperCase();
+            const numStr = value.slice(0, -1).trim();
+            
+            // 转换为数字
+            let num = parseFloat(numStr);
+            if (isNaN(num)) return null;
+            
+            // 根据单位进行转换
+            switch(unit) {
+                case 'B': // Billion
+                    num *= 1000; // 转换为 Million
+                    break;
+                case 'M': // Million
+                    break;
+                case 'K': // Thousand
+                    num /= 1000; // 转换为 Thousand
+                    break;
+                default:
+                    // 如果没有单位，假设是基本单位
+                    break;
+            }
+            
+            return num === 0 ? null : num;
+        }
+
+        const leftValues = chartData.map(row => parseValue(row.left_liquidation)).filter(value => value !== null);
+        const rightValues = chartData.map(row => parseValue(row.right_liquidation)).filter(value => value !== null);
+
+        // 创建图表
+        new Chart(document.getElementById('liquidationChart'), {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: '多头强度',
+                    data: leftValues,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: '空头强度',
+                    data: rightValues,
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '时间'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: '强度'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '<%= selectedCoin %> 强度趋势图 (近<%= selectedDays %>天)'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += context.parsed.y;
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 添加清理数据的函数
+        async function cleanData(days) {
+            if (!confirm(`确定要清理${days === 0 ? '所有' : days + '天前的'}数据吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/clean-data/${days}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    // 刷新数据显示
+                    updateData();
+                } else {
+                    alert('清理失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('清理数据失败:', error);
+                alert('清理数据失败，请查看控制台获取详细信息');
+            }
+        }
+    </script>
+</body>
+</html>
