@@ -1,5 +1,8 @@
 # Coinglass Data Scraper
-
+本项目纯粹是爬虫技术的探讨, 不得用于商业目的。
+在本项目中, 通过抓取 Coinglass 的某个chart页面的数据, 使用鼠标的悬停, 然后获取弹出框内的数据。
+和以往的爬虫不同， 这个爬虫是基于浏览器的自动化技术实现的。通过代码可以学习到如何操作puppeteer， 然后
+如何判断数据, 判断画面， 然后如何获取数据。
 自动化抓取 Coinglass 平台的加密货币清算数据。
 
 ## 系统要求
@@ -22,6 +25,42 @@ sudo apt-get install -y nodejs
 sudo apt-get update
 sudo apt-get install -y \
     chromium-browser 
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libgcc1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    wget \
+    xdg-utils
 ```
 
 3. 克隆代码并安装依赖：
@@ -35,6 +74,11 @@ npm install
 ```bash
 touch .env
 # 编辑 .env 文件添加必要的环境变量
+PORT=3000
+APP_PASSWORD=your_secure_password    # 用于登录的密码
+SESSION_SECRET=your_session_secret
+DB_PATH=./liquidation.db
+SCRAPE_INTERVAL=3600000
 ```
 
 5. 运行测试：
@@ -80,6 +124,10 @@ crontab -e
 3. 错误处理：
    - 添加了基本的错误处理和重试机制
    - 建议配置日志记录系统
+
+4. 目前只在 Ubuntu 20.04 64-bit 环境下测试，可能存在兼容性问题
+
+5. 本项目仅用于学习和研究，不得用于商业目的
 
 ## 维护
 
